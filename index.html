@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>バーコードリーダー</title>
+    <script src="https://unpkg.com/@zxing/library@latest"></script>
+  </head>
+  <body>
+    <h1>バーコードリーダー</h1>
+    <video id="video" width="600" height="400"></video>
+    <div id="result"></div>
+
+    <script>
+      const codeReader = new ZXing.BrowserMultiFormatReader();
+      const videoElement = document.getElementById('video');
+      const resultElement = document.getElementById('result');
+
+      async function startScanning() {
+        try {
+          await codeReader.decodeFromVideoDevice(null, videoElement, (result) => {
+            if (result) {
+              const code = result.getText();
+              resultElement.textContent = `バーコード: ${code}`;
+              fetchBookInfo(code);
+            }
+          });
+        } catch (err) {
+          console.error('エラーが発生しました:', err);
+        }
+      }
+
+      async function fetchBookInfo(isbn) {
+        try {
+          // OpenBDのAPIを使用して書籍情報を取得
+          const response = await fetch(`https://api.openbd.jp/v1/get?isbn=${isbn}`);
+          const data = await response.json();
+
+          if (data[0]) {
+            const book = data[0];
+            resultElement.innerHTML = `
+              <h2>${book.summary.title}</h2>
+              <p>著者: ${book.summary.author}</p>
+              <p>出版社: ${book.summary.publisher}</p>
+              <p>ISBN: ${isbn}</p>
+            `;
+          }
+        } catch (err) {
+          console.error('書籍情報の取得に失敗しました:', err);
+        }
+      }
+
+      startScanning();
+    </script>
+  </body>
+</html>
