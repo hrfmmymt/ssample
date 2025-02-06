@@ -31,10 +31,9 @@
 
       async function fetchBookInfo(isbn) {
         try {
-          // OpenBDのAPIを使用して書籍情報を取得
           const response = await fetch(`https://api.openbd.jp/v1/get?isbn=${isbn}`);
           const data = await response.json();
-
+          
           if (data[0]) {
             const book = data[0];
             resultElement.innerHTML = `
@@ -43,9 +42,64 @@
               <p>出版社: ${book.summary.publisher}</p>
               <p>ISBN: ${isbn}</p>
             `;
+          } else {
+            // ISBNで見つからない場合はJANコードとして処理
+            await fetchMusicInfo(isbn);
           }
         } catch (err) {
-          console.error('書籍情報の取得に失敗しました:', err);
+          console.error('情報の取得に失敗しました:', err);
+        }
+      }
+
+      async function fetchMusicInfo(barcode) {
+        try {
+          const response = await fetch(`https://musicbrainz.org/ws/2/release/?query=barcode:${barcode}&fmt=json`, {
+            headers: {
+              'User-Agent': 'MyApp/1.0.0 ( example@email.com )'
+            }
+          });
+          const data = await response.json();
+
+          if (data.releases && data.releases.length > 0) {
+            const release = data.releases[0];
+            resultElement.innerHTML = `
+              <h2>${release.title}</h2>
+              <p>アーティスト: ${release['artist-credit']?.[0]?.name || '不明'}</p>
+              <p>リリース日: ${release.date || '不明'}</p>
+              <p>バーコード: ${barcode}</p>
+              <p>形式: ${release.media?.[0]?.format || '不明'}</p>
+            `;
+
+            // カバーアート取得（利用可能な場合）
+            await fetchCoverArt(release.id);
+          } else {
+            resultElement.innerHTML = `
+              <p>商品情報が見つかりませんでした。</p>
+              <p>バーコード: ${barcode}</p>
+            `;
+          }
+        } catch (err) {
+          console.error('音楽情報の取得に失敗しました:', err);
+          resultElement.innerHTML = `
+            <p>エラーが発生しました。</p>
+            <p>バーコード: ${barcode}</p>
+          `;
+        }
+      }
+
+      async function fetchCoverArt(releaseId) {
+        try {
+          const response = await fetch(`https://coverartarchive.org/release/${releaseId}`);
+          const data = await response.json();
+          
+          if (data.images && data.images.length > 0) {
+            const img = document.createElement('img');
+            img.src = data.images[0].thumbnails.small;
+            img.alt = 'カバーアート';
+            resultElement.appendChild(img);
+          }
+        } catch (err) {
+          console.error('カバーアート取得に失敗しました:', err);
         }
       }
 
